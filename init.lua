@@ -90,8 +90,12 @@ P.S. You can delete this when you're done too. It's your config now! :)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
+-- Add the LuaRocks paths to the package paths
+package.path = package.path .. ';/Users/joeryan/.luarocks/share/lua/5.1/?.lua;/Users/joeryan/.luarocks/share/lua/5.1/?/init.lua'
+package.cpath = package.cpath .. ';/Users/joeryan/.luarocks/lib/lua/5.1/?.so'
+
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
@@ -102,7 +106,7 @@ vim.g.have_nerd_font = false
 vim.opt.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.opt.relativenumber = true
+vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.opt.mouse = 'a'
@@ -117,6 +121,24 @@ vim.opt.showmode = false
 vim.schedule(function()
   vim.opt.clipboard = 'unnamedplus'
 end)
+
+--disable perl provider
+vim.g.loaded_perl_provider = 0
+
+--setting python host prog
+-- vim.g.python3_host_prog = vim.fn.expand '~/.config/nvim/env/bin/python'
+local python_path = vim.fn.system 'which python3'
+vim.g.python3_host_prog = vim.fn.trim(python_path)
+
+--disable ruby provider
+vim.g.loaded_ruby_provider = 0
+
+vim.opt.laststatus = 3 -- Global statusline
+
+-- nvim-tree settings
+vim.g.loaded_netrw = 1
+vim.g.loaded_netrwPlugin = 1
+vim.opt.termguicolors = true
 
 -- Enable break indent
 vim.opt.breakindent = true
@@ -156,6 +178,10 @@ vim.opt.cursorline = true
 
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.opt.scrolloff = 10
+
+--test laucnhing with default kernel
+vim.g.molten_default_kernel = 'python3'
+vim.g.python3_host_prog = vim.fn.expand '~/.pyenv/versions/nvim_molten_env/bin/python'
 
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
@@ -605,10 +631,12 @@ require('lazy').setup({
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
-        -- clangd = {},
-        -- gopls = {},
-        -- pyright = {},
-        -- rust_analyzer = {},
+        clangd = {},
+        gopls = {},
+        pyright = {},
+        rust_analyzer = {},
+        bashls = {},
+        zls = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
         -- Some languages (like typescript) have entire language plugins that can be useful:
@@ -924,12 +952,168 @@ require('lazy').setup({
   -- require 'kickstart.plugins.neo-tree',
   -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
+  {
+    'nvim-tree/nvim-tree.lua',
+    version = '*',
+    lazy = false,
+    dependencies = {
+      'nvim-tree/nvim-web-devicons',
+    },
+    config = function()
+      require('nvim-tree').setup {
+        sort_by = 'case_sensitive',
+        view = {
+          width = 30,
+        },
+        renderer = {
+          group_empty = true,
+        },
+        filters = {
+          dotfiles = false, -- Set to true if you want to hide dotfiles
+        },
+        git = {
+          ignore = false, -- Set to true if you want to hide files ignored by git
+        },
+        actions = {
+          open_file = {
+            quit_on_open = false, -- Don't close the tree when opening a file
+          },
+        },
+      }
+    end,
+  },
+  {
+    'yetone/avante.nvim',
+    event = 'VeryLazy',
+    lazy = false,
+    version = false, -- set this if you want to always pull the latest change
+    opts = {
+      -- add any opts here
+    },
+    build = 'make',
+    dependencies = {
+      'nvim-treesitter/nvim-treesitter',
+      'stevearc/dressing.nvim',
+      'nvim-lua/plenary.nvim',
+      'MunifTanjim/nui.nvim',
+      'nvim-tree/nvim-web-devicons',
+      {
+        'MeanderingProgrammer/render-markdown.nvim',
+        opts = {
+          file_types = { 'markdown', 'Avante' },
+        },
+        ft = { 'markdown', 'Avante' },
+      },
+    },
+  },
+  -- Add the following plugins for Jupyter notebook support
+  {
+    'benlubas/molten-nvim',
+    version = '^1.0.0',
+    dependencies = {
+      '3rd/image.nvim',
+    },
+    build = ':UpdateRemotePlugins',
+    init = function()
+      -- Set the Python host program to use pyenv
+      vim.g.python3_host_prog = vim.fn.expand '~/.pyenv/versions/nvim_molten_env/bin/python'
+
+      -- Molten configuration
+      vim.g.molten_image_provider = 'image.nvim'
+      vim.g.molten_output_win_max_height = 20
+      vim.g.molten_auto_open_output = false
+      vim.g.molten_wrap_output = true
+      vim.g.molten_virt_text_output = true
+      vim.g.molten_virt_lines_off_by_1 = true
+    end,
+    config = function()
+      -- Keybindings for Molten
+      vim.keymap.set('n', '<localleader>e', ':MoltenEvaluateOperator<CR>', { desc = 'Molten Evaluate Operator', silent = true })
+      vim.keymap.set('n', '<localleader>rr', ':MoltenReevaluateCell<CR>', { desc = 'Molten Reevaluate Cell', silent = true })
+      vim.keymap.set('v', '<localleader>r', ':<C-u>MoltenEvaluateVisual<CR>gv', { desc = 'Molten Evaluate Visual', silent = true })
+      vim.keymap.set('n', '<localleader>os', ':noautocmd MoltenEnterOutput<CR>', { desc = 'Molten Open Output', silent = true })
+      vim.keymap.set('n', '<localleader>oh', ':MoltenHideOutput<CR>', { desc = 'Molten Hide Output', silent = true })
+      vim.keymap.set('n', '<localleader>md', ':MoltenDelete<CR>', { desc = 'Molten Delete Cell', silent = true })
+    end,
+  },
+  {
+    '3rd/image.nvim',
+    opts = {
+      backend = 'kitty',
+      integrations = {
+        markdown = {
+          enabled = true,
+          clear_in_insert_mode = false,
+          download_remote_images = true,
+          only_render_image_at_cursor = false,
+          filetypes = { 'markdown', 'vimwiki' },
+        },
+      },
+      max_width = 100,
+      max_height = 12,
+      max_height_window_percentage = math.huge,
+      max_width_window_percentage = math.huge,
+      window_overlap_clear_enabled = true,
+      window_overlap_clear_ft_ignore = { 'cmp_menu', 'cmp_docs', '' },
+    },
+  },
+  {
+    'quarto-dev/quarto-nvim',
+    ft = { 'quarto', 'markdown', 'ipynb' },
+    opts = {
+      lspFeatures = {
+        languages = { 'python' },
+        chunks = 'all',
+        diagnostics = {
+          enabled = true,
+          triggers = { 'BufWritePost' },
+        },
+        completion = {
+          enabled = true,
+        },
+      },
+      keymap = {
+        hover = 'H',
+        definition = 'gd',
+        rename = '<leader>rn',
+        references = 'gr',
+        format = '<leader>gf',
+      },
+      codeRunner = {
+        enabled = true,
+        default_method = 'molten',
+      },
+    },
+    config = function(_, opts)
+      require('quarto').setup(opts)
+      local runner = require 'quarto.runner' -- Load the quarto.runner module
+
+      -- Update keymaps using the new runner functions from the Quarto API
+      vim.keymap.set('n', '<localleader>rc', function()
+        runner.run_cell() -- Updated function for running a cell
+      end, { desc = 'run cell', silent = true })
+
+      vim.keymap.set('n', '<localleader>ra', runner.run_above, { desc = 'run cell and above', silent = true })
+      vim.keymap.set('n', '<localleader>rA', runner.run_all, { desc = 'run all cells', silent = true })
+      vim.keymap.set('n', '<localleader>rl', runner.run_line, { desc = 'run line', silent = true })
+      vim.keymap.set('v', '<localleader>r', runner.run_range, { desc = 'run visual range', silent = true })
+    end,
+  },
+  {
+    'jmbuhr/otter.nvim',
+    dependencies = {
+      'nvim-treesitter/nvim-treesitter',
+    },
+    opts = {},
+  },
+  -- Add this to your lazy.nvim plugin list
+
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   --    For additional information, see `:help lazy.nvim-lazy.nvim-structuring-your-plugins`
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
@@ -950,7 +1134,138 @@ require('lazy').setup({
       lazy = '💤 ',
     },
   },
+  rocks = {
+    enabled = false, -- Disable LuaRocks support
+  },
 })
 
+require('avante_lib').load()
+
+vim.api.nvim_set_keymap('n', '<C-n>', ':NvimTreeToggle<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>e', ':NvimTreeFocus<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>tf', ':NvimTreeFindFile<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>tr', ':NvimTreeRefresh<CR>', { noremap = true, silent = true })
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
+
+-- Function to toggle between relative and absolute line numbers
+function _G.toggle_line_numbers_custom()
+  if vim.wo.relativenumber then
+    vim.wo.relativenumber = false
+    vim.wo.number = true
+    print 'Absolute line numbers enabled'
+  else
+    vim.wo.relativenumber = true
+    vim.wo.number = true
+    print 'Relative line numbers enabled'
+  end
+end
+
+-- Set up the keybinding
+vim.api.nvim_set_keymap(
+  'n',
+  '<leader>tn',
+  '<cmd>lua toggle_line_numbers_custom()<CR>',
+  { noremap = true, silent = true, desc = 'Toggle between relative and absolute line numbers' }
+)
+
+local function setup_symbols(symbols)
+  for trigger, symbol in pairs(symbols) do
+    vim.keymap.set('i', '\\' .. trigger, symbol)
+  end
+end
+
+-- Define symbols by category
+local symbols = {
+  -- Greek lowercase
+  greek_lower = {
+    alpha = 'α',
+    a = 'α',
+    beta = 'β',
+    b = 'β',
+    gamma = 'γ',
+    delta = 'δ',
+    epsilon = 'ε',
+    zeta = 'ζ',
+    eta = 'η',
+    theta = 'θ',
+    lambda = 'λ',
+    lam = 'λ',
+    mu = 'μ',
+    nu = 'ν',
+    xi = 'ξ',
+    pi = 'π',
+    rho = 'ρ',
+    sigma = 'σ',
+    tau = 'τ',
+    phi = 'φ',
+    chi = 'χ',
+    psi = 'ψ',
+    omega = 'ω',
+  },
+
+  -- Greek uppercase
+  greek_upper = {
+    Alpha = 'Α',
+    Beta = 'Β',
+    Gamma = 'Γ',
+    Delta = 'Δ',
+    Epsilon = 'Ε',
+    Zeta = 'Ζ',
+    Eta = 'Η',
+    Theta = 'Θ',
+    Iota = 'Ι',
+    Kappa = 'Κ',
+    Lambda = 'Λ',
+    Mu = 'Μ',
+    Nu = 'Ν',
+    Xi = 'Ξ',
+    Omicron = 'Ο',
+    Pi = 'Π',
+    Rho = 'Ρ',
+    Sigma = 'Σ',
+    Tau = 'Τ',
+    Upsilon = 'Υ',
+    Phi = 'Φ',
+    Chi = 'Χ',
+    Psi = 'Ψ',
+    Omega = 'Ω',
+  },
+
+  -- Operators
+  operators = {
+    ['in'] = '∈',
+    notin = '∉',
+    union = '∪',
+    intersect = '∩',
+    subset = '⊂',
+    supset = '⊃',
+    forall = '∀',
+    exists = '∃',
+    therefore = '∴',
+    sum = '∑',
+    prod = '∏',
+  },
+
+  -- Arrows
+  arrows = {
+    implies = '⟹',
+    iff = '⟺',
+    to = '→',
+    gets = '←',
+  },
+
+  -- Misc
+  misc = {
+    trademark = '™',
+    copyright = '©',
+    top = '⊤',
+    dot = '·',
+    n = '\\n',
+    sec = '§',
+  },
+}
+
+for _, category in pairs(symbols) do
+  setup_symbols(category)
+end
